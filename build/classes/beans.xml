@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd">
+	<!-- 1.配置lifecycleBeanPostProcessor -->
+	<bean id="lifecycleBeanPostProcessor" class="org.apache.shiro.spring.LifecycleBeanPostProcessor"/>
+    <!-- 2.配置securityManager -->
+    <bean id="securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+        <property name="cacheManager" ref="cacheManager"/>
+        <property name="authenticator" ref="modularRealmAuthenticator"></property>
+        <property name="realms">
+        	<list>
+    			<ref bean="realm01"/>
+    			<ref bean="realm02"/>
+    		</list>
+        </property>
+        <property name="rememberMeManager.cookie.maxAge" value="3600"></property><!-- 设置RememberMe时间,单位:秒 -->
+    </bean>
+	<!-- 2.1配置cacheManager -->
+    <bean id="cacheManager" class="org.apache.shiro.cache.ehcache.EhCacheManager">
+        <property name="cacheManagerConfigFile" value="classpath:ehcache.xml"/>
+    </bean>
+
+	<!-- 2.2自定义配置多个realm -->
+		<!-- 2.2.1自定义多个realm -->
+    <bean id="realm01" class="com.cn.realm.MyRealm01">
+    	<property name="credentialsMatcher">
+    		<bean class="org.apache.shiro.authc.credential.HashedCredentialsMatcher">
+    			<property name="hashAlgorithmName" value="MD5"></property>
+    			<property name="hashIterations" value="502"></property>
+    			
+    		</bean>
+    	</property>
+    </bean>
+    <bean id="realm02" class="com.cn.realm.MyRealm02">
+    	<property name="credentialsMatcher">
+    		<bean class="org.apache.shiro.authc.credential.HashedCredentialsMatcher">
+    			<property name="hashAlgorithmName" value="SHA1"></property>
+    			<property name="hashIterations" value="502"></property>
+    			
+    		</bean>
+    	</property>
+    </bean>
+    	<!-- 2.2.2配置ModularRealmAuthenticator,将多个自定义realm放在集合中 -->
+    <bean id="modularRealmAuthenticator" class="org.apache.shiro.authc.pam.ModularRealmAuthenticator">
+    	<property name="authenticationStrategy">
+    		<bean class="org.apache.shiro.authc.pam.AtLeastOneSuccessfulStrategy"></bean>	<!-- 配置认证策略 -->
+    	</property>
+    </bean>
+
+	<!-- 3.配置shiro注解驱动 -->
+    <bean class="org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator"
+          depends-on="lifecycleBeanPostProcessor"/>
+    <bean class="org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor">
+        <property name="securityManager" ref="securityManager"/>
+    </bean>
+
+
+    <!-- 4.配置shiroFilter过滤器 -->
+    <bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+        <property name="securityManager" ref="securityManager"/>
+        <property name="loginUrl" value="/UserHandler/loginUI"/>
+        <property name="unauthorizedUrl" value="/unauthorized.jsp"></property>
+        <!-- 使用filterChainDefinitionMap替代filterChainDefinitions,将数据库中保存的 资源路径=过滤器  ,存放进filterChainDefinitionMap集合 -->
+        <property name="filterChainDefinitionMap" ref="filterChainDefinitionMap"></property>
+    </bean>
+    <!-- 使用工厂类中的方法实例化map集合对象 -->
+	<bean id="filterChainDefinitionMapFactory" class="com.cn.factory.FilterChainDefinitionMapFactory"></bean>
+	<bean id="filterChainDefinitionMap" factory-bean="filterChainDefinitionMapFactory" factory-method="getFilterChainDefinitionMap"></bean>
+	
+	
+	
+	<bean id="userService" class="com.cn.service.UserService"></bean>
+</beans>
